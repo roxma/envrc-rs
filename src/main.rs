@@ -27,6 +27,16 @@ fn do_bash() {
     let cur_rc = current_envrc();
 
     if found_rc == cur_rc {
+        let p = r#"
+        if [ -n "$ENVRC_LOAD" -a -z "$ENVRC_LOADED" ]
+        then
+            ENVRC_LOADED=1
+            echo loading "$ENVRC_LOAD"
+            . "$ENVRC_LOAD"
+        fi
+            "#;
+
+        println!("{}", p);
         return
     }
 
@@ -36,10 +46,9 @@ fn do_bash() {
             let exec = current_exe().unwrap().into_os_string().into_string().unwrap();
 
             let mut tmp_file = TempFile::new("/tmp/envrc_XXXXXX", false).unwrap();
-            tmp_file.write("test content".as_bytes()).unwrap();
+            tmp_file.write("exit 0".as_bytes()).unwrap();
 
             let p = format!(r#"
-echo loading {found_rc}
 ENVRC_TMP="{tmp_name}" ENVRC_LOAD="{found_rc}" $BASH
 eval "$(cat {tmp_name}; rm {tmp_name})"
 eval "$({envrc_path} bash)" "#,
