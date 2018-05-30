@@ -1,4 +1,4 @@
-# envrc -- auto source .envrc of your workspace
+# envrc -- Auto source .envrc of your workspace
 
 ## Motivation
 
@@ -21,6 +21,18 @@ the parent shell after you `cd` out of the directory.
 - Add `PROMPT_COMMAND='eval "$(envrc bash)"'` to the end of your bashrc
 
 Note: Take care of your background jobs before getting out of `.envrc`.
+
+```
+$ mkdir foo
+$ echo 'echo in foo directory' > foo/.envrc
+$ cd foo
+  envrc: spawning new /bin/bash
+  envrc: loading [/home/roxma/test/envrc/foo/.envrc]
+  in foo directory
+$ cd ..
+  envrc: exit [/home/roxma/test/envrc/foo/.envrc]
+$
+```
 
 ## Why not python?
 

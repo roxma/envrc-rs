@@ -68,7 +68,7 @@ eval "$({exe} bash)" "#,
         println!(r#"
 echo "cd '$PWD'
 export OLDPWD='$OLDPWD'" > $ENVRC_TMP
-echo "envrc: EXIT - unload [$ENVRC_LOAD]"
+echo "envrc: exit [$ENVRC_LOAD]"
 exit 0
         "#)
     }
