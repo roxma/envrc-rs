@@ -2,9 +2,10 @@
 
 ## Motivation
 
-[direnv](https://github.com/direnv/direnv) doesn't quite support alias by now.
+Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially support
+alias at the moment.
 
-According to direnv documentation, 
+Secondly, according to direnv documentation, 
 
 > direnv is actually creating a new bash process to load the stdlib, direnvrc
 > and .envrc, and only exports the environment diff back to the original shell
@@ -33,3 +34,7 @@ real    0m0.079s
 user    0m0.044s
 sys     0m0.004s
 ```
+
+## Future plans
+
+- `envrc allow` support
