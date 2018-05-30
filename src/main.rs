@@ -25,63 +25,67 @@ fn main() {
 fn do_bash() {
     let found_rc = find_envrc();
     let cur_rc = current_envrc();
+    let exe = current_exe().unwrap().into_os_string().into_string().unwrap();
 
     if found_rc == cur_rc {
-        let p = r#"
-        if [ -n "$ENVRC_LOAD" -a -z "$ENVRC_LOADED" ]
+        let p = format!(r#"
+        if [ -n "$ENVRC_LOAD" -a -z "$ENVRC_LOADED" -a "$ENVRC_PPID" == "$PPID" ]
         then
             ENVRC_LOADED=1
-            echo loading "$ENVRC_LOAD"
+            echo "envrc: loading [$ENVRC_LOAD]"
             . "$ENVRC_LOAD"
+        elif [ -n "$ENVRC_LOAD" -a "$ENVRC_PPID" != "$PPID" ]
+        then
+            unset ENVRC_LOAD
+            unset ENVRC_LOADED
+            unset ENVRC_PPID
+            unset ENVRC_TMP
+            unset ENVRC_DIR
+            eval "$({exe} bash)"
         fi
-            "#;
+            "#, exe = exe);
 
         println!("{}", p);
         return
     }
 
-    match cur_rc {
-        None => {
-            let found_rc = found_rc.unwrap();
-            let exec = current_exe().unwrap().into_os_string().into_string().unwrap();
+    if cur_rc == "" {
+        let mut tmp_file = TempFile::new("/tmp/envrc_XXXXXX", false).unwrap();
+        tmp_file.write("exit 0".as_bytes()).unwrap();
 
-            let mut tmp_file = TempFile::new("/tmp/envrc_XXXXXX", false).unwrap();
-            tmp_file.write("exit 0".as_bytes()).unwrap();
-
-            let p = format!(r#"
-ENVRC_TMP="{tmp_name}" ENVRC_LOAD="{found_rc}" $BASH
+        let p = format!(r#"
+echo "envrc: spawning new $BASH"
+ENVRC_TMP="{tmp_name}" ENVRC_LOAD="{found_rc}" ENVRC_PPID=$$ ENVRC_DIR="$PWD" $BASH
 eval "$(cat {tmp_name}; rm {tmp_name})"
-eval "$({envrc_path} bash)" "#,
-                found_rc = found_rc,
-                envrc_path = exec,
-                tmp_name = String::from(tmp_file.path()));
+eval "$({exe} bash)" "#,
+            found_rc = found_rc,
+            exe = exe,
+            tmp_name = String::from(tmp_file.path()));
 
-            println!("{}", p);
-        },
-        Some(_) => {
-            // let the parent shell to take over
-            println!(r#"
+        println!("{}", p);
+    } else {
+        // let the parent shell to take over
+        println!(r#"
 echo "cd '$PWD'
 export OLDPWD='$OLDPWD'" > $ENVRC_TMP
-echo "unload $ENVRC_LOAD"
+echo "envrc: EXIT - unload [$ENVRC_LOAD]"
 exit 0
-            "#)
-        }
+        "#)
     }
 }
 
-fn current_envrc() -> Option<String> {
+fn current_envrc() -> String {
     let key = "ENVRC_LOAD";
     match var(key) {
-        Ok(val) => Some(val),
-        Err(_) => None
+        Ok(val) => val,
+        Err(_) => String::new()
     }
 }
 
-fn find_envrc() -> Option<String> {
+fn find_envrc() -> String {
     let d = current_dir();
     if d.is_err() {
-        return None
+        return String::new()
     }
 
     let mut d = d.unwrap();
@@ -92,13 +96,13 @@ fn find_envrc() -> Option<String> {
 
         if rc.is_file() {
             return match rc.into_os_string().into_string() {
-                Ok(s) => Some(s),
-                Err(_) => None
+                Ok(s) => s,
+                Err(_) => String::new()
             }
         }
 
         if d.parent().is_none() {
-            return None;
+            return String::new()
         }
 
         d = d.parent().unwrap().to_path_buf();
