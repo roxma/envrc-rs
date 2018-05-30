@@ -19,6 +19,8 @@ the parent shell after you `cd` out of the directory.
 - Copy the executable `envrc` into your `$PATH`
 - Add `PROMPT_COMMAND='eval "$(envrc bash)"'` to the end of your bashrc
 
+Note: Take care of your background jobs before getting out of `.envrc`.
+
 ## Why not python?
 
 The first working commit is written in python. But there's noticable time lag
