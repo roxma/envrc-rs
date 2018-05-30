@@ -1,0 +1,9 @@
+[package]
+name = "envrc"
+version = "0.1.0"
+authors = ["roxma <roxma@qq.com>"]
+
+[dependencies]
+clap = "2"
+mkstemp-rs = "1.0.0"
+

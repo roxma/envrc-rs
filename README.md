@@ -13,6 +13,12 @@ On the contrast, envrc is simpler. It starts a new interactive bash shell and
 load the `.envrc` for you. The shell exits and returns your terminal back to
 the parent shell after you `cd` out of the directory.
 
+## Usage
+
+- Build the program from source with `cargo build`
+- Copy the executable `envrc` into your `$PATH`
+- Add `PROMPT_COMMAND='eval "$(envrc bash)"'` to the end of your bashrc
+
 ## Why not python?
 
 The first working commit is written in python. But there's noticable time lag
