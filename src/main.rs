@@ -7,6 +7,7 @@ use mkstemp::TempFile;
 use std::io::{Write, BufReader, BufRead};
 use std::path::{PathBuf};
 use std::fs::{create_dir_all, OpenOptions};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn main() {
     let bash = SubCommand::with_name("bash")
@@ -26,8 +27,9 @@ fn main() {
     if let Some(_) = matches.subcommand_matches("bash") {
         do_bash();
     }
-    if let Some(_) = matches.subcommand_matches("allow") {
-        do_allow();
+    else if let Some(_) = matches.subcommand_matches("allow") {
+        let rc_found = find_envrc().unwrap();
+        add_allow(&rc_found);
     }
 }
 
@@ -88,26 +90,39 @@ ENVRC_NOT_ALLOWED=
     }
 
     if rc_cur.is_some() && is_out_of_scope(rc_cur.unwrap()) {
-         return back_to_parent()
+        update_if_allowed(rc_cur.as_ref().unwrap());
+        return back_to_parent()
     }
 
-    if rc_found.is_some() && !is_allowed(rc_found.unwrap()) {
-         // found an .envrc, but it's not allowed to be loaded
-        let p = format!(r#"
+    if rc_found.is_some() {
+        let allow_err = check_allow(rc_found.unwrap());
+
+        if allow_err.is_some() {
+            let allow_err = allow_err.unwrap();
+
+            let allow_err = match allow_err {
+                AllowError::AllowDenied => "NOT ALLOWED.",
+                AllowError::AllowExpired => "PERMISSION EXPIRED."
+            };
+
+            // found an .envrc, but it's not allowed to be loaded
+            let p = format!(r#"
 if [ "$ENVRC_NOT_ALLOWED" != "{rc_found}" ]
 then
-    tput setaf 1
+    tput setaf 3
     tput bold
-    echo "envrc: [{rc_found}] is not allowed."
-    echo '       try execute "envrc allow" to grand permission'
+    echo "envrc: [{rc_found}] {allow_err}"
+    echo '       try execute "envrc allow"'
     tput sgr0
     ENVRC_NOT_ALLOWED="{rc_found}"
 fi
              "#,
-             rc_found = rc_found.unwrap());
- 
-        println!("{}", p);
-        return
+             rc_found = rc_found.unwrap(),
+             allow_err = allow_err);
+
+            println!("{}", p);
+            return
+        }
     }
 
     if rc_cur.is_some() {
@@ -154,20 +169,19 @@ fn is_out_of_scope(rc: &String) -> bool {
     let dir = dir.unwrap();
 
     let rc_path = PathBuf::from(rc);
+    let rc_dir = rc_path.parent().unwrap();
 
-    if rc_path.strip_prefix(dir.as_path()).is_ok() {
+    if dir.strip_prefix(rc_dir).is_ok() {
+        eprintln!("not out of scope {:?} {:?}", rc_path, dir);
         return false
     }
 
     return true
 }
 
-fn do_allow() {
-    let rc_found = find_envrc().unwrap();
-
-    if is_allowed(&rc_found) {
-        return
-    }
+fn add_allow(rc: &String) {
+    let now = SystemTime::now();
+    let now = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
 
     let dir = get_config_dir();
     let _ = create_dir_all(dir.clone());
@@ -175,19 +189,64 @@ fn do_allow() {
     let mut allow_list = dir;
     allow_list.push("allow.list");
 
+    let list = load_allow_list();
+
     let mut file = OpenOptions::new()
                     .create(true)
-                    .append(true)
+                    .write(true)
+                    .truncate(true)
                     .open(allow_list.to_str().unwrap())
                     .unwrap();
-    file.write_fmt(format_args!("{}\n", rc_found)).unwrap();
+
+    for (name, ts) in &list {
+        if name == rc {
+            continue;
+        }
+        file.write_fmt(format_args!("{} {}\n", name, ts)).unwrap();
+    }
+
+    file.write_fmt(format_args!("{} {}\n", rc, now)).unwrap();
+}
+
+
+fn update_if_allowed(rc: &String) {
+    let now = SystemTime::now();
+    let now = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
+
+    let dir = get_config_dir();
+    let _ = create_dir_all(dir.clone());
+
+    let mut allow_list = dir;
+    allow_list.push("allow.list");
+
+    let list = load_allow_list();
+    let mut allowed = false;
+
+    let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(allow_list.to_str().unwrap())
+                    .unwrap();
+
+    for (name, ts) in &list {
+        if name == rc {
+            allowed = true;
+            continue;
+        }
+        file.write_fmt(format_args!("{} {}\n", name, ts)).unwrap();
+    }
+
+    if allowed {
+        file.write_fmt(format_args!("{} {}\n", rc, now)).unwrap();
+    }
 }
 
 fn get_config_dir() -> PathBuf {
     let home = var("HOME").unwrap();
     let mut dir = PathBuf::from(home);
 
-    let dirs = vec![".config", "envrc"];
+    let dirs = vec![".cache", "envrc"];
 
     for (_, e) in dirs.iter().enumerate() {
         dir.push(e);
@@ -195,7 +254,36 @@ fn get_config_dir() -> PathBuf {
     dir
 }
 
-fn is_allowed(rc: &String) -> bool {
+enum AllowError {
+    AllowDenied,
+    AllowExpired
+}
+
+fn check_allow(rc: &String) -> Option<AllowError> {
+    let now = SystemTime::now();
+    let now = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
+
+    let duration = match var("ENVRC_ALLOW_DURATION") {
+        Ok(val) => val.parse::<u64>().unwrap(),
+        Err(_) => 60 * 60 * 24
+    };
+
+    let list = load_allow_list();
+
+    for (name, ts) in &list {
+        if name == rc {
+            if now >= ts + duration {
+                return Some(AllowError::AllowExpired)
+            } else {
+                return None
+            }
+        }
+    }
+
+    return Some(AllowError::AllowDenied)
+}
+
+fn load_allow_list() -> Vec<(String, u64)> {
     let dir = get_config_dir();
 
     let mut allow_list = dir;
@@ -205,17 +293,26 @@ fn is_allowed(rc: &String) -> bool {
                     .read(true)
                     .open(allow_list.to_str().unwrap());
     if file.is_err() {
-        return false;
+        return Vec::new()
     }
+    let file = file.unwrap();
 
-    for line in BufReader::new(file.unwrap()).lines() {
+    let mut ret :Vec<(String, u64)> = Vec::new();
+
+    for line in BufReader::new(file).lines() {
         let line = line.unwrap();
-        if line == *rc {
-            return true;
+        let fields = line.split(" ");
+        let fields = fields.collect::<Vec<&str>>();
+        let mut ts = 0u64;
+        let name = String::from(fields[0]);
+        if fields.len() > 1 {
+            let tmp = String::from(fields[1]);
+            ts = tmp.parse::<u64>().unwrap();
         }
+        ret.push((name, ts))
     }
 
-    return false;
+    return ret
 }
 
 fn current_envrc() -> Option<String> {
