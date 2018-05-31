@@ -1,7 +1,7 @@
 extern crate clap;
 extern crate mkstemp;
 
-use clap::{App, SubCommand};
+use clap::{App, AppSettings, SubCommand};
 use std::env::{current_dir, current_exe, var};
 use mkstemp::TempFile;
 use std::io::{Write, BufReader, BufRead};
@@ -14,17 +14,18 @@ fn main() {
         .about("for bashrc: PROMPT_COMMAND='eval \"$(envrc bash)\"'");
 
     let allow = SubCommand::with_name("allow")
-        .about("Allow envrc to load the .envrc");
+        .about("Grant permission to envrc to load the .envrc");
 
     let deny = SubCommand::with_name("deny")
         .about("Remove the permission");
 
     let prune = SubCommand::with_name("prune")
-        .about("Remove expired, and non-existing-file permissions");
+        .about("Remove expired or non-existing-file permissions");
 
     let matches = App::new("envrc")
         .version("0.1")
         .author("Rox Ma roxma@qq.com")
+        .setting(AppSettings::ArgRequiredElseHelp)
         .about("auto source .envrc of your workspace")
         .subcommand(bash)
         .subcommand(allow)
