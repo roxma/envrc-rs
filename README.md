@@ -34,6 +34,27 @@ $ cd ..
 $
 ```
 
+```
+$ envrc
+  envrc 0.1
+  Rox Ma roxma@qq.com
+  auto source .envrc of your workspace
+
+  USAGE:
+      envrc [SUBCOMMAND]
+
+  FLAGS:
+      -h, --help       Prints help information
+      -V, --version    Prints version information
+
+  SUBCOMMANDS:
+      allow    Grant permission to envrc to load the .envrc
+      bash     for bashrc: PROMPT_COMMAND='eval "$(envrc bash)"'
+      deny     Remove the permission
+      help     Prints this message or the help of the given subcommand(s)
+      prune    Remove expired or non-existing-file permissions
+```
+
 ## Config
 
 ```bash
