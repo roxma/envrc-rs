@@ -32,7 +32,6 @@ fn do_bash() {
         if [ -n "$ENVRC_LOAD" -a -z "$ENVRC_LOADED" -a "$ENVRC_PPID" == "$PPID" ]
         then
             ENVRC_LOADED=1
-            echo "envrc: loading [$ENVRC_LOAD]"
             . "$ENVRC_LOAD"
         elif [ -n "$ENVRC_LOAD" -a "$ENVRC_PPID" != "$PPID" ]
         then
@@ -54,7 +53,7 @@ fn do_bash() {
         tmp_file.write("exit 0".as_bytes()).unwrap();
 
         let p = format!(r#"
-echo "envrc: spawning new $BASH"
+echo "envrc: spwan for [{found_rc}]"
 ENVRC_TMP="{tmp_name}" ENVRC_LOAD="{found_rc}" ENVRC_PPID=$$ ENVRC_DIR="$PWD" $BASH
 eval "$(cat {tmp_name}; rm {tmp_name})"
 eval "$({exe} bash)" "#,
