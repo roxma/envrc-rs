@@ -19,6 +19,9 @@ fn main() {
     let deny = SubCommand::with_name("deny")
         .about("Remove the permission");
 
+    let prune = SubCommand::with_name("prune")
+        .about("Remove expired, and non-existing-file permissions");
+
     let matches = App::new("envrc")
         .version("0.1")
         .author("Rox Ma roxma@qq.com")
@@ -26,6 +29,7 @@ fn main() {
         .subcommand(bash)
         .subcommand(allow)
         .subcommand(deny)
+        .subcommand(prune)
         .get_matches();
 
     if let Some(_) = matches.subcommand_matches("bash") {
@@ -38,6 +42,9 @@ fn main() {
     else if let Some(_) = matches.subcommand_matches("deny") {
         let rc_found = find_envrc().unwrap();
         remove_allow(&rc_found);
+    }
+    else if let Some(_) = matches.subcommand_matches("prune") {
+        prune_allow();
     }
 }
 
@@ -83,9 +90,14 @@ fn do_bash_wrapped() {
 
     let exe = current_exe().unwrap().into_os_string().into_string().unwrap();
 
-    if rc_cur.is_some() && is_out_of_scope(rc_cur.unwrap()) {
-        update_if_allowed(rc_cur.as_ref().unwrap());
-        return back_to_parent()
+    if rc_cur.is_some() {
+        let rc_cur = rc_cur.unwrap();
+
+        update_if_allowed(rc_cur);
+
+        if is_out_of_scope(rc_cur) {
+            return back_to_parent()
+        }
     }
 
     let allow_err = check_allow(rc_found);
@@ -247,6 +259,39 @@ fn remove_allow(rc: &String) {
     }
 }
 
+fn prune_allow() {
+    let now = timestamp();
+    let duration = get_allow_duration();
+
+    let dir = get_config_dir();
+    let _ = create_dir_all(dir.clone());
+
+    let mut allow_list = dir;
+    allow_list.push("allow.list");
+
+    let list = load_allow_list();
+
+    let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(allow_list.to_str().unwrap())
+                    .unwrap();
+
+    for (name, ts) in &list {
+        if now >= ts + duration {
+            println!("envrc: filter expired [{}]", name);
+            continue;
+        }
+        let path = PathBuf::from(name);
+        if path.is_file() == false {
+            println!("envrc: filter non-existing [{}]", name);
+            continue;
+        }
+        file.write_fmt(format_args!("{} {}\n", name, ts)).unwrap();
+    }
+}
+
 fn timestamp() -> u64 {
     let now = SystemTime::now();
     now.duration_since(UNIX_EPOCH).unwrap().as_secs()
@@ -254,7 +299,7 @@ fn timestamp() -> u64 {
 
 fn update_if_allowed(rc: &String) {
     let now = timestamp();
-    let duration = get_allow_duration();
+    // let duration = get_allow_duration();
 
     let dir = get_config_dir();
     let _ = create_dir_all(dir.clone());
@@ -273,7 +318,7 @@ fn update_if_allowed(rc: &String) {
                     .unwrap();
 
     for (name, ts) in &list {
-        if name == rc && now < ts + duration {
+        if name == rc {
             allowed = true;
             continue;
         }
