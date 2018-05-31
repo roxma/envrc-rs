@@ -34,7 +34,7 @@ $ cd ..
 $
 ```
 
-## Why not python?
+## Why not bash/python?
 
 The first working commit is written in python. But there's noticeable time lag
 with the python version on my PC. Rewriting it with perl doesn't help either.
@@ -46,6 +46,12 @@ real    0m0.079s
 user    0m0.044s
 sys     0m0.004s
 ```
+
+I have also tried a pure bash implementation. It works better than the python
+implementation, since most of the python overhead is its startup time.  Most
+of the bash overhead is fork/exec of sub-processes and it's way slower than
+the rust implementation. Read [#1](https://github.com/roxma/envrc-rs/issues/1)
+for more information.
 
 ## Future plans
 
