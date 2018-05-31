@@ -2,8 +2,8 @@
 
 ## Motivation
 
-Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially support
-alias at the moment.
+Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially
+[support alias](https://github.com/direnv/direnv/issues/73) at the moment.
 
 Secondly, according to direnv documentation, 
 
