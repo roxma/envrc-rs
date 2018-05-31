@@ -36,7 +36,7 @@ $
 
 ## Why not python?
 
-The first working commit is written in python. But there's noticable time lag
+The first working commit is written in python. But there's noticeable time lag
 with the python version on my PC. Rewriting it with perl doesn't help either.
 Then I decided to switch to rust.
 
