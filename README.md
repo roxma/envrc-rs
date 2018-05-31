@@ -34,6 +34,14 @@ $ cd ..
 $
 ```
 
+## Config
+
+```bash
+# If the `.envrc` is allowed, but not sourced for 1d since last unload, It
+# will be considered expired
+export ENVRC_ALLOW_DURATION=$((60*60*24))
+```
+
 ## Why not bash/python?
 
 The first working commit is written in python. But there's noticeable time lag
@@ -53,6 +61,3 @@ of the bash overhead is fork/exec of sub-processes and it's way slower than
 the rust implementation. Read [#1](https://github.com/roxma/envrc-rs/issues/1)
 for more information.
 
-## Future plans
-
-- `envrc allow` support

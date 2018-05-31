@@ -16,12 +16,16 @@ fn main() {
     let allow = SubCommand::with_name("allow")
         .about("Allow envrc to load the .envrc");
 
+    let deny = SubCommand::with_name("deny")
+        .about("Remove the permission");
+
     let matches = App::new("envrc")
         .version("0.1")
         .author("Rox Ma roxma@qq.com")
         .about("auto source .envrc of your workspace")
         .subcommand(bash)
         .subcommand(allow)
+        .subcommand(deny)
         .get_matches();
 
     if let Some(_) = matches.subcommand_matches("bash") {
@@ -30,6 +34,10 @@ fn main() {
     else if let Some(_) = matches.subcommand_matches("allow") {
         let rc_found = find_envrc().unwrap();
         add_allow(&rc_found);
+    }
+    else if let Some(_) = matches.subcommand_matches("deny") {
+        let rc_found = find_envrc().unwrap();
+        remove_allow(&rc_found);
     }
 }
 
@@ -75,7 +83,20 @@ fn do_bash_wrapped() {
 
     let exe = current_exe().unwrap().into_os_string().into_string().unwrap();
 
+    if rc_cur.is_some() && is_out_of_scope(rc_cur.unwrap()) {
+        update_if_allowed(rc_cur.as_ref().unwrap());
+        return back_to_parent()
+    }
+
+    let allow_err = check_allow(rc_found);
+
     if rc_found == rc_cur {
+        if allow_err.is_some() {
+            return back_to_parent_eval(format!(r#"
+                    ENVRC_NOT_ALLOWED={}
+                    "#, rc_cur.unwrap()))
+        }
+
         let p = format!(r#"
 if [ -n "$ENVRC_LOAD" -a -z "$ENVRC_LOADED" ]
 then
@@ -89,24 +110,14 @@ ENVRC_NOT_ALLOWED=
         return
     }
 
-    if rc_cur.is_some() && is_out_of_scope(rc_cur.unwrap()) {
-        update_if_allowed(rc_cur.as_ref().unwrap());
-        return back_to_parent()
-    }
+    if allow_err.is_some() {
+        let allow_err = match allow_err.unwrap() {
+            AllowError::AllowDenied => "NOT ALLOWED.",
+            AllowError::AllowExpired => "PERMISSION EXPIRED."
+        };
 
-    if rc_found.is_some() {
-        let allow_err = check_allow(rc_found.unwrap());
-
-        if allow_err.is_some() {
-            let allow_err = allow_err.unwrap();
-
-            let allow_err = match allow_err {
-                AllowError::AllowDenied => "NOT ALLOWED.",
-                AllowError::AllowExpired => "PERMISSION EXPIRED."
-            };
-
-            // found an .envrc, but it's not allowed to be loaded
-            let p = format!(r#"
+        // found an .envrc, but it's not allowed to be loaded
+        let p = format!(r#"
 if [ "$ENVRC_NOT_ALLOWED" != "{rc_found}" ]
 then
     tput setaf 3
@@ -120,9 +131,8 @@ fi
              rc_found = rc_found.unwrap(),
              allow_err = allow_err);
 
-            println!("{}", p);
-            return
-        }
+        println!("{}", p);
+        return
     }
 
     if rc_cur.is_some() {
@@ -152,13 +162,19 @@ eval "$({exe} bash)"
 }
 
 fn back_to_parent() {
+    back_to_parent_eval(String::new())
+}
+
+fn back_to_parent_eval(extra: String) {
     // let the parent shell to take over
     println!(r#"
     echo "cd '$PWD'
-    export OLDPWD='$OLDPWD'" > $ENVRC_TMP
+    export OLDPWD='$OLDPWD'
+    {}
+    " > $ENVRC_TMP
     echo "envrc: exit [$ENVRC_LOAD]"
     exit 0
-        "#);
+        "#, extra);
 }
 
 fn is_out_of_scope(rc: &String) -> bool {
@@ -172,7 +188,6 @@ fn is_out_of_scope(rc: &String) -> bool {
     let rc_dir = rc_path.parent().unwrap();
 
     if dir.strip_prefix(rc_dir).is_ok() {
-        eprintln!("not out of scope {:?} {:?}", rc_path, dir);
         return false
     }
 
@@ -208,10 +223,38 @@ fn add_allow(rc: &String) {
     file.write_fmt(format_args!("{} {}\n", rc, now)).unwrap();
 }
 
+fn remove_allow(rc: &String) {
+    let dir = get_config_dir();
+    let _ = create_dir_all(dir.clone());
+
+    let mut allow_list = dir;
+    allow_list.push("allow.list");
+
+    let list = load_allow_list();
+
+    let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(allow_list.to_str().unwrap())
+                    .unwrap();
+
+    for (name, ts) in &list {
+        if name == rc {
+            continue;
+        }
+        file.write_fmt(format_args!("{} {}\n", name, ts)).unwrap();
+    }
+}
+
+fn timestamp() -> u64 {
+    let now = SystemTime::now();
+    now.duration_since(UNIX_EPOCH).unwrap().as_secs()
+}
 
 fn update_if_allowed(rc: &String) {
-    let now = SystemTime::now();
-    let now = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let now = timestamp();
+    let duration = get_allow_duration();
 
     let dir = get_config_dir();
     let _ = create_dir_all(dir.clone());
@@ -230,7 +273,7 @@ fn update_if_allowed(rc: &String) {
                     .unwrap();
 
     for (name, ts) in &list {
-        if name == rc {
+        if name == rc && now < ts + duration {
             allowed = true;
             continue;
         }
@@ -259,14 +302,22 @@ enum AllowError {
     AllowExpired
 }
 
-fn check_allow(rc: &String) -> Option<AllowError> {
-    let now = SystemTime::now();
-    let now = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
-
-    let duration = match var("ENVRC_ALLOW_DURATION") {
+fn get_allow_duration() -> u64 {
+    match var("ENVRC_ALLOW_DURATION") {
         Ok(val) => val.parse::<u64>().unwrap(),
         Err(_) => 60 * 60 * 24
-    };
+    }
+}
+
+fn check_allow(rc: Option<&String>) -> Option<AllowError> {
+    if rc.is_none() {
+        return None
+    }
+    let rc = rc.unwrap();
+
+    let now = timestamp();
+
+    let duration = get_allow_duration();
 
     let list = load_allow_list();
 
