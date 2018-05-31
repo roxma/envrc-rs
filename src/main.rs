@@ -6,7 +6,7 @@ use std::env::{current_dir, current_exe, var};
 use mkstemp::TempFile;
 use std::io::{Write, BufReader, BufRead};
 use std::path::{PathBuf};
-use std::fs::{create_dir_all, File, OpenOptions};
+use std::fs::{create_dir_all, OpenOptions};
 
 fn main() {
     let bash = SubCommand::with_name("bash")
@@ -153,12 +153,7 @@ fn is_out_of_scope(rc: &String) -> bool {
     }
     let dir = dir.unwrap();
 
-    let rc_path = PathBuf::from(rc.clone());
-    let rc_dir = rc_path.parent();
-    if rc_dir.is_none() {
-        return true
-    }
-    let rc_dir = PathBuf::from(rc_dir.unwrap());
+    let rc_path = PathBuf::from(rc);
 
     if rc_path.strip_prefix(dir.as_path()).is_ok() {
         return false
@@ -175,7 +170,7 @@ fn do_allow() {
     }
 
     let dir = get_config_dir();
-    create_dir_all(dir.clone());
+    let _ = create_dir_all(dir.clone());
 
     let mut allow_list = dir;
     allow_list.push("allow.list");
@@ -185,7 +180,7 @@ fn do_allow() {
                     .append(true)
                     .open(allow_list.to_str().unwrap())
                     .unwrap();
-    file.write_fmt(format_args!("{}\n", rc_found));
+    file.write_fmt(format_args!("{}\n", rc_found)).unwrap();
 }
 
 fn get_config_dir() -> PathBuf {
@@ -212,9 +207,8 @@ fn is_allowed(rc: &String) -> bool {
     if file.is_err() {
         return false;
     }
-    let mut file = file.unwrap();
 
-    for line in BufReader::new(file).lines() {
+    for line in BufReader::new(file.unwrap()).lines() {
         let line = line.unwrap();
         if line == *rc {
             return true;
