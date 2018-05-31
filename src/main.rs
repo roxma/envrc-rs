@@ -65,12 +65,15 @@ done
 }
 
 fn do_bash_wrapped() {
-    let cur_rc = current_envrc();
-
+    let rc_cur = current_envrc();
     let rc_found = find_envrc();
+
+    let rc_found = rc_found.as_ref();
+    let rc_cur = rc_cur.as_ref();
+
     let exe = current_exe().unwrap().into_os_string().into_string().unwrap();
 
-    if rc_found == cur_rc {
+    if rc_found == rc_cur {
         let p = format!(r#"
 if [ -n "$ENVRC_LOAD" -a -z "$ENVRC_LOADED" ]
 then
@@ -84,11 +87,11 @@ ENVRC_NOT_ALLOWED=
         return
     }
 
-    if cur_rc.is_some() && is_out_of_scope(cur_rc.as_ref().unwrap()) {
+    if rc_cur.is_some() && is_out_of_scope(rc_cur.unwrap()) {
          return back_to_parent()
     }
 
-    if rc_found.is_some() && !is_allowed(rc_found.as_ref().unwrap()) {
+    if rc_found.is_some() && !is_allowed(rc_found.unwrap()) {
          // found an .envrc, but it's not allowed to be loaded
         let p = format!(r#"
 if [ "$ENVRC_NOT_ALLOWED" != "{rc_found}" ]
@@ -101,13 +104,13 @@ then
     ENVRC_NOT_ALLOWED="{rc_found}"
 fi
              "#,
-             rc_found = rc_found.as_ref().unwrap());
+             rc_found = rc_found.unwrap());
  
         println!("{}", p);
         return
     }
 
-    if cur_rc.is_some() {
+    if rc_cur.is_some() {
         // we're in an .envrc scope, but need to load another one
         return back_to_parent()
     }
