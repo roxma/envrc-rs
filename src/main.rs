@@ -23,7 +23,7 @@ fn main() {
         .about("Remove expired or non-existing-file permissions");
 
     let matches = App::new("envrc")
-        .version("0.1")
+        .version("0.2")
         .author("Rox Ma roxma@qq.com")
         .setting(AppSettings::ArgRequiredElseHelp)
         .about("auto source .envrc of your workspace")

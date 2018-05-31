@@ -36,7 +36,7 @@ $
 
 ```
 $ envrc
-  envrc 0.1
+  envrc 0.2
   Rox Ma roxma@qq.com
   auto source .envrc of your workspace
 
