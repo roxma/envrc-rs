@@ -97,7 +97,7 @@ fn do_bash_wrapped() {
         update_if_allowed(rc_cur);
 
         if is_out_of_scope(rc_cur) {
-            return back_to_parent()
+            return bash_to_parent()
         }
     }
 
@@ -105,7 +105,7 @@ fn do_bash_wrapped() {
 
     if rc_found == rc_cur {
         if allow_err.is_some() {
-            return back_to_parent_eval(format!(r#"
+            return bash_to_parent_eval(format!(r#"
                     ENVRC_NOT_ALLOWED={}
                     "#, rc_cur.unwrap()))
         }
@@ -150,7 +150,7 @@ fi
 
     if rc_cur.is_some() {
         // we're in an .envrc scope, but need to load another one
-        return back_to_parent()
+        return bash_to_parent()
     }
 
 
@@ -174,11 +174,11 @@ eval "$({exe} bash)"
     println!("{}", p);
 }
 
-fn back_to_parent() {
-    back_to_parent_eval(String::new())
+fn bash_to_parent() {
+    bash_to_parent_eval(String::new())
 }
 
-fn back_to_parent_eval(extra: String) {
+fn bash_to_parent_eval(extra: String) {
     // let the parent shell to take over
     println!(r#"
     echo "cd '$PWD'

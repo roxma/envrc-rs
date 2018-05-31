@@ -10,9 +10,9 @@ Secondly, according to direnv documentation,
 > direnv is actually creating a new bash process to load the stdlib, direnvrc
 > and .envrc, and only exports the environment diff back to the original shell
 
-On the contrast, envrc is simpler. It starts a new interactive bash shell and
-load the `.envrc` for you. The shell exits and returns your terminal back to
-the parent shell after you `cd` out of the directory.
+However, envrc is simpler. It starts a new interactive bash shell and load the
+`.envrc` for you. The shell exits and returns your terminal back to the parent
+shell after you `cd` out of the directory.
 
 ## Usage
 
