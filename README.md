@@ -55,12 +55,13 @@ $ envrc
       prune    Remove expired or non-existing-file permissions
 ```
 
-## Tips for .envrc 
+## .envrc tips
 
 - `export WORKSPACE_DIR=$(readlink -f "$(dirname "$BASH_SOURCE[0]")")` for
   `.envrc` to locate its directory.
+- `exec bash` to reload the modifed `.envrc`
 
-## Bashrc config
+## .bashrc config
 
 ```bash
 # If the `.envrc` is allowed, but not sourced for 1d since last unload, It
