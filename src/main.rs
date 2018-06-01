@@ -1,10 +1,10 @@
 extern crate clap;
 
-use clap::{App, AppSettings, SubCommand};
+use clap::{App, AppSettings, SubCommand, Arg};
 use std::env::{current_dir, current_exe, var};
 use std::io::{Write, BufReader, BufRead};
 use std::path::{PathBuf};
-use std::fs::{create_dir_all, OpenOptions};
+use std::fs::{create_dir_all, OpenOptions, canonicalize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn main() {
@@ -15,6 +15,9 @@ fn main() {
         .about("Grant permission to envrc to load the .envrc");
 
     let deny = SubCommand::with_name("deny")
+        .arg(Arg::with_name("envrc-file")
+             .required(false)
+             .help(".envrc files to be denied"))
         .about("Remove the permission");
 
     let prune = SubCommand::with_name("prune")
@@ -38,9 +41,20 @@ fn main() {
         let rc_found = find_envrc().unwrap();
         add_allow(&rc_found);
     }
-    else if let Some(_) = matches.subcommand_matches("deny") {
-        let rc_found = find_envrc().unwrap();
-        remove_allow(&rc_found);
+    else if let Some(matches) = matches.subcommand_matches("deny") {
+        if let Some(file) = matches.value_of("envrc-file") {
+            let mut path = canonicalize(file).unwrap();
+            if path.is_dir() {
+                path.push(".envrc");
+            }
+            let path = String::from(path.to_str().unwrap());
+            remove_allow(&path);
+            println!("{} is denied", path);
+        } else {
+            let rc_found = find_envrc().unwrap();
+            remove_allow(&rc_found);
+            println!("{} is denied", rc_found);
+        }
     }
     else if let Some(_) = matches.subcommand_matches("prune") {
         prune_allow();
