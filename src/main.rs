@@ -1,9 +1,7 @@
 extern crate clap;
-extern crate mkstemp;
 
 use clap::{App, AppSettings, SubCommand};
 use std::env::{current_dir, current_exe, var};
-use mkstemp::TempFile;
 use std::io::{Write, BufReader, BufRead};
 use std::path::{PathBuf};
 use std::fs::{create_dir_all, OpenOptions};
@@ -63,10 +61,10 @@ do
  if [ -n "$ENVRC_PPID" -a "$ENVRC_PPID" != "$PPID" ]
  then
   unset ENVRC_LOAD
-  unset ENVRC_LOADED
   unset ENVRC_PPID
   unset ENVRC_TMP
-  unset ENVRC_NOT_ALLOWED
+  unset envrc_loaded
+  unset envrc_not_allowed
   eval "$({exe} bash)"
   break
  fi
@@ -106,17 +104,17 @@ fn do_bash_wrapped() {
     if rc_found == rc_cur {
         if allow_err.is_some() {
             return bash_to_parent_eval(format!(r#"
-                    ENVRC_NOT_ALLOWED={}
+                    envrc_not_allowed={}
                     "#, rc_cur.unwrap()))
         }
 
         let p = format!(r#"
-if [ -n "$ENVRC_LOAD" -a -z "$ENVRC_LOADED" ]
+if [ -n "$ENVRC_LOAD" -a -z "$envrc_loaded" ]
 then
-    ENVRC_LOADED=1
+    envrc_loaded=1
     . "$ENVRC_LOAD"
 fi
-ENVRC_NOT_ALLOWED=
+envrc_not_allowed=
             "#);
 
         println!("{}", p);
@@ -131,14 +129,14 @@ ENVRC_NOT_ALLOWED=
 
         // found an .envrc, but it's not allowed to be loaded
         let p = format!(r#"
-if [ "$ENVRC_NOT_ALLOWED" != "{rc_found}" ]
+if [ "$envrc_not_allowed" != "{rc_found}" ]
 then
     tput setaf 3
     tput bold
     echo "envrc: [{rc_found}] {allow_err}"
     echo '       try execute "envrc allow"'
     tput sgr0
-    ENVRC_NOT_ALLOWED="{rc_found}"
+    envrc_not_allowed="{rc_found}"
 fi
              "#,
              rc_found = rc_found.unwrap(),
@@ -153,23 +151,20 @@ fi
         return bash_to_parent()
     }
 
-
     // we're in parent shell, ENVRC_LOAD is empty
     // now we're going to load rc_found
     let rc_found = rc_found.unwrap();
 
-    let mut tmp_file = TempFile::new("/tmp/envrc_XXXXXX", false).unwrap();
-    tmp_file.write("exit 0".as_bytes()).unwrap();
-
     let p = format!(r#"
 echo "envrc: spwan for [{rc_found}]"
-ENVRC_TMP="{tmp_name}" ENVRC_LOAD="{rc_found}" ENVRC_PPID=$$ $BASH
-eval "$(cat {tmp_name}; rm {tmp_name})"
+export ENVRC_TMP="$(mktemp "${{TMPDIR-/tmp}}/envrc.XXXXXXXXXX")"
+ENVRC_LOAD="{rc_found}" ENVRC_PPID=$$ $BASH
+eval "$(if [ -s $ENVRC_TMP ]; then cat $ENVRC_TMP; else echo exit 0; fi; rm $ENVRC_TMP)"
+unset ENVRC_TMP
 eval "$({exe} bash)" 
         "#,
         rc_found = rc_found,
-        exe = exe,
-        tmp_name = String::from(tmp_file.path()));
+        exe = exe);
 
     println!("{}", p);
 }
