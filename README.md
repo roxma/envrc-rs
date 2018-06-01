@@ -55,6 +55,11 @@ $ envrc
       prune    Remove expired or non-existing-file permissions
 ```
 
+## Tips
+
+- `export WORKSPACE_DIR=$(readlink -f "$(dirname "$BASH_SOURCE[0]")")` for `.envrc`
+  to locate its directory.
+
 ## Config
 
 ```bash
