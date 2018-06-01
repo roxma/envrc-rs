@@ -5,14 +5,14 @@
 Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially
 [support alias](https://github.com/direnv/direnv/issues/73) at the moment.
 
-Secondly, according to direnv documentation, 
+Secondly,
 
 > direnv is actually creating a new bash process to load the stdlib, direnvrc
 > and .envrc, and only exports the environment diff back to the original shell
 
-However, envrc is simpler. It starts a new interactive bash shell and load the
-`.envrc` for you. The shell exits and returns your terminal back to the parent
-shell after you `cd` out of the directory.
+However, envrc is simpler. It spawns a new interactive bash and load `.envrc`.
+When you `cd` out of the directory, The shell exits and returns terminal back
+to the original shell.
 
 ## Usage
 
