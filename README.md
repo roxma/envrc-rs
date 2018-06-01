@@ -11,7 +11,7 @@ Secondly,
 > and .envrc, and only exports the environment diff back to the original shell
 
 However, envrc is simpler. It spawns a new interactive bash and load `.envrc`.
-When you `cd` out of the directory, The shell exits and returns terminal back
+When you `cd` out of the directory, the shell exits and returns terminal back
 to the original shell.
 
 ## Usage
