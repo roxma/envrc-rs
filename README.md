@@ -55,17 +55,18 @@ $ envrc
       prune    Remove expired or non-existing-file permissions
 ```
 
-## Tips
+## Tips for .envrc 
 
-- `export WORKSPACE_DIR=$(readlink -f "$(dirname "$BASH_SOURCE[0]")")` for `.envrc`
-  to locate its directory.
+- `export WORKSPACE_DIR=$(readlink -f "$(dirname "$BASH_SOURCE[0]")")` for
+  `.envrc` to locate its directory.
 
-## Config
+## Bashrc config
 
 ```bash
 # If the `.envrc` is allowed, but not sourced for 1d since last unload, It
 # will be considered expired
 export ENVRC_ALLOW_DURATION=$((60*60*24))
+PROMPT_COMMAND='eval "$(envrc bash)"'
 ```
 
 ## Why not bash/python?
