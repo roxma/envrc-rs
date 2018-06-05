@@ -126,6 +126,7 @@ fn do_bash_wrapped() {
 if [ -n "$ENVRC_LOAD" -a -z "$envrc_loaded" ]
 then
     envrc_loaded=1
+    echo "envrc: loading [$ENVRC_LOAD]"
     . "$ENVRC_LOAD"
 fi
 envrc_not_allowed=
@@ -170,7 +171,7 @@ fi
     let rc_found = rc_found.unwrap();
 
     let p = format!(r#"
-echo "envrc: spwan for [{rc_found}]"
+echo "envrc: spwan $BASH"
 export ENVRC_TMP="$(mktemp "${{TMPDIR-/tmp}}/envrc.XXXXXXXXXX")"
 ENVRC_LOAD="{rc_found}" ENVRC_PPID=$$ $BASH
 eval "$(if [ -s $ENVRC_TMP ]; then cat $ENVRC_TMP; else echo exit 0; fi; rm $ENVRC_TMP)"
