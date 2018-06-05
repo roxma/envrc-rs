@@ -1,6 +1,6 @@
 # envrc -- Auto source .envrc of your workspace
 
-## Motivation
+## Wny?
 
 Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially
 [support alias](https://github.com/direnv/direnv/issues/73) at the moment.
@@ -8,30 +8,33 @@ Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially
 Secondly,
 
 > direnv is actually creating a new bash process to load the stdlib, direnvrc
-> and .envrc, and only exports the environment diff back to the original shell
+> and .envrc, and only exports the environment diff back to the original
+> shell.
 
 However, envrc is simpler. It spawns a new interactive bash and load `.envrc`.
 When you `cd` out of the directory, the shell exits and returns terminal back
 to the original shell.
 
-## Usage
+## Install
 
 - Build the program from source with `cargo build`
 - Copy the executable `envrc` into your `$PATH`
 - Add `PROMPT_COMMAND='eval "$(envrc bash)"'` to the end of your bashrc
 
-Note: Take care of your background jobs before getting out of `.envrc`.
+## Usage
 
 ```
 $ mkdir foo
+$ 
 $ echo 'echo in foo directory' > foo/.envrc
+$ 
 $ cd foo
   envrc: spawning new /bin/bash
   envrc: loading [/home/roxma/test/envrc/foo/.envrc]
   in foo directory
+$ 
 $ cd ..
   envrc: exit [/home/roxma/test/envrc/foo/.envrc]
-$
 ```
 
 ```
@@ -54,6 +57,8 @@ $ envrc
       help     Prints this message or the help of the given subcommand(s)
       prune    Remove expired or non-existing-file permissions
 ```
+
+Note: Take care of your background jobs before getting out of `.envrc`.
 
 ## .envrc tips
 
