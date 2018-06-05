@@ -3,5 +3,9 @@ name = "envrc"
 version = "0.2.0"
 authors = ["roxma <roxma@qq.com>"]
 
+[[bin]]
+name = "envrc"
+path = "src/main.rs"
+
 [dependencies]
 clap = "2"
