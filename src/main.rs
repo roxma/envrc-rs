@@ -449,10 +449,6 @@ fn find_envrc() -> Option<String> {
             }
         }
 
-        if d.parent().is_none() {
-            return None
-        }
-
-        d = d.parent().unwrap().to_path_buf();
+        d = d.parent()?.to_path_buf();
     }
 }
