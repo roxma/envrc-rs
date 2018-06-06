@@ -1,4 +1,4 @@
-# envrc -- Auto source .envrc of your workspace
+# envrc - Auto source bash .envrc of your workspace
 
 ## Wny?
 
