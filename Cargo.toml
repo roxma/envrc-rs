@@ -3,6 +3,9 @@ name = "envrc"
 version = "0.2.0"
 authors = ["roxma <roxma@qq.com>"]
 license = "MIT"
+repository = "https://github.com/roxma/envrc-rs"
+description = "Auto source bash .envrc of your workspace"
+
 
 [[bin]]
 name = "envrc"
