@@ -17,7 +17,7 @@ to the original shell.
 
 ## Install
 
-- `cargo install --git git@github.com:roxma/envrc-rs.git`
+- `cargo install envrc`
 - Add `PROMPT_COMMAND='eval "$(envrc bash)"'` to the end of your bashrc
 
 ## Usage
