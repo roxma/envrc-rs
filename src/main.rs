@@ -38,20 +38,23 @@ fn main() {
         do_bash();
     }
     else if let Some(_) = matches.subcommand_matches("allow") {
-        let rc_found = find_envrc().unwrap();
+        let cur_dir = current_dir().unwrap();
+        let rc_found = find_envrc(cur_dir).unwrap();
         add_allow(&rc_found);
     }
     else if let Some(matches) = matches.subcommand_matches("deny") {
         if let Some(file) = matches.value_of("envrc-file") {
             let mut path = canonicalize(file).unwrap();
             if path.is_dir() {
-                path.push(".envrc");
+                let dir = PathBuf::from(path.clone());
+                path = PathBuf::from(find_envrc(dir).unwrap());
             }
             let path = String::from(path.to_str().unwrap());
             remove_allow(&path);
             println!("{} is denied", path);
         } else {
-            let rc_found = find_envrc().unwrap();
+            let cur_dir = current_dir().unwrap();
+            let rc_found = find_envrc(cur_dir).unwrap();
             remove_allow(&rc_found);
             println!("{} is denied", rc_found);
         }
@@ -96,7 +99,8 @@ done
 
 fn do_bash_wrapped() {
     let rc_cur = current_envrc();
-    let rc_found = find_envrc();
+    let cur_dir = current_dir().unwrap();
+    let rc_found = find_envrc(cur_dir);
 
     let rc_found = rc_found.as_ref();
     let rc_cur = rc_cur.as_ref();
@@ -127,7 +131,12 @@ if [ -n "$ENVRC_LOAD" -a -z "$envrc_loaded" ]
 then
     envrc_loaded=1
     echo "envrc: loading [$ENVRC_LOAD]"
-    . "$ENVRC_LOAD"
+    if [ -f "$ENVRC_LOAD" ]
+    then
+        . "$ENVRC_LOAD"
+    else
+        . "$ENVRC_LOAD/envrc"
+    fi
 fi
 envrc_not_allowed=
             "#);
@@ -430,19 +439,12 @@ fn current_envrc() -> Option<String> {
     }
 }
 
-fn find_envrc() -> Option<String> {
-    let d = current_dir();
-    if d.is_err() {
-        return None
-    }
-
-    let mut d = d.unwrap();
-
+fn find_envrc(mut d: PathBuf) -> Option<String> {
     loop {
         let mut rc = d.clone();
         rc.push(".envrc");
 
-        if rc.is_file() {
+        if rc.is_file() || rc.is_dir() {
             return match rc.into_os_string().into_string() {
                 Ok(s) => Some(s),
                 Err(_) => None
