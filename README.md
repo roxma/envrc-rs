@@ -61,7 +61,7 @@ Note: Take care of your background jobs before getting out of `.envrc`.
 
 ## .envrc tips
 
-- `export WORKSPACE_DIR=$(readlink -f "$(dirname "$BASH_SOURCE[0]")")` for
+- `export WORKSPACE_DIR=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")` for
   `.envrc` to locate its directory.
 - `exec bash` to reload the modifed `.envrc`
 
