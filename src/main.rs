@@ -180,12 +180,17 @@ fi
     let rc_found = rc_found.unwrap();
 
     let p = format!(r#"
-echo "envrc: spwan $BASH"
-export ENVRC_TMP="$(mktemp "${{TMPDIR-/tmp}}/envrc.XXXXXXXXXX")"
-ENVRC_LOAD="{rc_found}" ENVRC_PPID=$$ $BASH
-eval "$(if [ -s $ENVRC_TMP ]; then cat $ENVRC_TMP; else echo exit 0; fi; rm $ENVRC_TMP)"
-unset ENVRC_TMP
-eval "$({exe} bash)" 
+if [ "$(jobs)" == "" ]
+then
+    echo "envrc: spwan $BASH"
+    export ENVRC_TMP="$(mktemp "${{TMPDIR-/tmp}}/envrc.XXXXXXXXXX")"
+    ENVRC_LOAD="{rc_found}" ENVRC_PPID=$$ $BASH
+    eval "$(if [ -s $ENVRC_TMP ]; then cat $ENVRC_TMP; else echo exit 0; fi; rm $ENVRC_TMP)"
+    unset ENVRC_TMP
+    eval "$({exe} bash)"
+else
+    echo "envrc: you have jobs, cannot load envrc"
+fi
         "#,
         rc_found = rc_found,
         exe = exe);
