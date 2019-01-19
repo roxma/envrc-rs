@@ -309,7 +309,7 @@ fn prune_allow() {
             continue;
         }
         let path = PathBuf::from(name);
-        if path.is_file() == false {
+        if path.is_file() == false && path.is_dir() == false {
             println!("envrc: filter non-existing [{}]", name);
             continue;
         }
@@ -359,7 +359,7 @@ fn get_config_dir() -> PathBuf {
     let home = var("HOME").unwrap();
     let mut dir = PathBuf::from(home);
 
-    let dirs = vec![".cache", "envrc"];
+    let dirs = vec![".config", "envrc"];
 
     for (_, e) in dirs.iter().enumerate() {
         dir.push(e);
