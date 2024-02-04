@@ -7,9 +7,7 @@ Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially
 
 Secondly,
 
-> direnv is actually creating a new bash process to load the stdlib, direnvrc
-> and .envrc, and only exports the environment diff back to the original
-> shell.
+> direnv is not loading the `.envrc` into the current shell. It's creating a new bash sub-process to load the stdlib, direnvrc and `.envrc`, and only exports the environment diff back to the original shell. This allows direnv to record the environment changes accurately and also work with all sorts of shells. It also means that aliases and functions are not exportable right now.
 
 However, envrc is simpler. It spawns a new interactive shell and load `.envrc`.
 When you `cd` out of the directory, the shell exits and returns terminal back
