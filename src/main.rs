@@ -1,70 +1,83 @@
 extern crate clap;
 
-use clap::{App, AppSettings, SubCommand, Arg};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::env::{current_dir, current_exe, var};
 use std::io::{Write, BufReader, BufRead};
 use std::path::{PathBuf};
 use std::fs::{create_dir_all, OpenOptions, canonicalize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[derive(Parser)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum Shell {
+    Bash,
+    Zsh,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Init the prompt command
+    Init {
+        #[arg(value_enum)]
+        shell: Shell,
+    },
+    /// Called for each prompt
+    Hook,
+    /// Grant permission to envrc to load the .envrc
+    Allow,
+    /// Remove the permission
+    Deny {
+        /// .envrc files to be denied
+        file: Option<PathBuf>,
+    },
+    /// Remove expired or non-existing-file permissions
+    Prune,
+}
+
 fn main() {
-    let bash = SubCommand::with_name("bash")
-        .about("for bashrc: PROMPT_COMMAND='eval \"$(envrc bash)\"'");
-
-    let allow = SubCommand::with_name("allow")
-        .about("Grant permission to envrc to load the .envrc");
-
-    let deny = SubCommand::with_name("deny")
-        .arg(Arg::with_name("envrc-file")
-             .required(false)
-             .help(".envrc files to be denied"))
-        .about("Remove the permission");
-
-    let prune = SubCommand::with_name("prune")
-        .about("Remove expired or non-existing-file permissions");
-
-    let matches = App::new("envrc")
-        .version("0.2")
-        .author("Rox Ma roxma@qq.com")
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .about("auto source .envrc of your workspace")
-        .subcommand(bash)
-        .subcommand(allow)
-        .subcommand(deny)
-        .subcommand(prune)
-        .get_matches();
-
-    if let Some(_) = matches.subcommand_matches("bash") {
-        do_bash();
-    }
-    else if let Some(_) = matches.subcommand_matches("allow") {
-        let cur_dir = current_dir().unwrap();
-        let rc_found = find_envrc(cur_dir).unwrap();
-        add_allow(&rc_found);
-    }
-    else if let Some(matches) = matches.subcommand_matches("deny") {
-        if let Some(file) = matches.value_of("envrc-file") {
-            let mut path = canonicalize(file).unwrap();
-            if path.is_dir() {
-                let dir = PathBuf::from(path.clone());
-                path = PathBuf::from(find_envrc(dir).unwrap());
-            }
-            let path = String::from(path.to_str().unwrap());
-            remove_allow(&path);
-            println!("{} is denied", path);
-        } else {
+    let args = Cli::parse();
+    match args.command {
+        Commands::Init { shell } => {
+            println!("{}", match shell {
+                Shell::Bash => "PROMPT_COMMAND='eval \"$(envrc hook)\"'",
+                Shell::Zsh => "precmd() { eval \"$(envrc hook)\"; }",
+            });
+        }
+        Commands::Hook => {
+            do_hook();
+        }
+        Commands::Allow => {
             let cur_dir = current_dir().unwrap();
             let rc_found = find_envrc(cur_dir).unwrap();
+            add_allow(&rc_found);
+        }
+        Commands::Deny { file } => {
+            let rc_found = if let Some(file) = file {
+                let mut path = canonicalize(file).unwrap();
+                if path.is_dir() {
+                    let dir = PathBuf::from(path.clone());
+                    path = PathBuf::from(find_envrc(dir).unwrap());
+                }
+                String::from(path.to_str().unwrap())
+            } else {
+                let cur_dir = current_dir().unwrap();
+                find_envrc(cur_dir).unwrap()
+            };
             remove_allow(&rc_found);
             println!("{} is denied", rc_found);
         }
-    }
-    else if let Some(_) = matches.subcommand_matches("prune") {
-        prune_allow();
+        Commands::Prune => {
+            prune_allow();
+        }
     }
 }
 
-fn do_bash() {
+fn do_hook() {
     let exe = current_exe()
         .unwrap()
         .into_os_string()
@@ -82,13 +95,13 @@ do
   unset ENVRC_TMP
   unset envrc_loaded
   unset envrc_not_allowed
-  eval "$({exe} bash)"
+  eval "$({exe} hook)"
   break
  fi
 "#, exe=exe);
     println!("{}", begin);
 
-    do_bash_wrapped();
+    do_hook_wrapped();
 
     let end = format!(r#"
 break
@@ -97,7 +110,7 @@ done
     println!("{}", end);
 }
 
-fn do_bash_wrapped() {
+fn do_hook_wrapped() {
     let rc_cur = current_envrc();
     let cur_dir = current_dir().unwrap();
     let rc_found = find_envrc(cur_dir);
@@ -113,7 +126,7 @@ fn do_bash_wrapped() {
         update_if_allowed(rc_cur);
 
         if is_out_of_scope(rc_cur) {
-            return bash_to_parent()
+            return shell_to_parent()
         }
     }
 
@@ -121,7 +134,7 @@ fn do_bash_wrapped() {
 
     if rc_found == rc_cur {
         if allow_err.is_some() {
-            return bash_to_parent_eval(format!(r#"
+            return shell_to_parent_eval(format!(r#"
                     envrc_not_allowed={}
                     "#, rc_cur.unwrap()))
         }
@@ -172,7 +185,7 @@ fi
 
     if rc_cur.is_some() {
         // we're in an .envrc scope, but need to load another one
-        return bash_to_parent()
+        return shell_to_parent()
     }
 
     // we're in parent shell, ENVRC_LOAD is empty
@@ -180,14 +193,14 @@ fi
     let rc_found = rc_found.unwrap();
 
     let p = format!(r#"
-if [ "$(jobs)" == "" ]
+if [[ "$(jobs)" = "" ]]
 then
-    echo "envrc: spwan $BASH"
+    echo "envrc: spwan $SHELL"
     export ENVRC_TMP="$(mktemp "${{TMPDIR-/tmp}}/envrc.XXXXXXXXXX")"
-    ENVRC_LOAD="{rc_found}" ENVRC_PPID=$$ $BASH
+    ENVRC_LOAD="{rc_found}" ENVRC_PPID=$$ $SHELL
     eval "$(if [ -s $ENVRC_TMP ]; then cat $ENVRC_TMP; else echo exit 0; fi; rm $ENVRC_TMP)"
     unset ENVRC_TMP
-    eval "$({exe} bash)"
+    eval "$({exe} hook)"
 else
     echo "envrc: you have jobs, cannot load envrc"
 fi
@@ -198,11 +211,11 @@ fi
     println!("{}", p);
 }
 
-fn bash_to_parent() {
-    bash_to_parent_eval(String::new())
+fn shell_to_parent() {
+    shell_to_parent_eval(String::new())
 }
 
-fn bash_to_parent_eval(extra: String) {
+fn shell_to_parent_eval(extra: String) {
     // let the parent shell to take over
     println!(r#"
     echo "cd '$PWD'
