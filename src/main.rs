@@ -2,9 +2,9 @@ extern crate clap;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use std::env::{current_dir, current_exe, var};
-use std::io::{Write, BufReader, BufRead};
-use std::path::{PathBuf};
-use std::fs::{create_dir_all, OpenOptions, canonicalize};
+use std::fs::{canonicalize, create_dir_all, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Parser)]
@@ -43,10 +43,13 @@ fn main() {
     let args = Cli::parse();
     match args.command {
         Commands::Init { shell } => {
-            println!("{}", match shell {
-                Shell::Bash => "PROMPT_COMMAND='eval \"$(envrc hook)\"'",
-                Shell::Zsh => "precmd() { eval \"$(envrc hook)\"; }",
-            });
+            println!(
+                "{}",
+                match shell {
+                    Shell::Bash => "PROMPT_COMMAND='eval \"$(envrc hook)\"'",
+                    Shell::Zsh => "precmd() { eval \"$(envrc hook)\"; }",
+                }
+            );
         }
         Commands::Hook => {
             do_hook();
@@ -84,7 +87,8 @@ fn do_hook() {
         .into_string()
         .unwrap();
 
-    let begin = format!(r#"
+    let begin = format!(
+        r#"
 {{
 while :
 do
@@ -98,15 +102,19 @@ do
   eval "$({exe} hook)"
   break
  fi
-"#, exe=exe);
+"#,
+        exe = exe
+    );
     println!("{}", begin);
 
     do_hook_wrapped();
 
-    let end = format!(r#"
+    let end = format!(
+        r#"
 break
 done
-}}"#);
+}}"#
+    );
     println!("{}", end);
 }
 
@@ -118,7 +126,11 @@ fn do_hook_wrapped() {
     let rc_found = rc_found.as_ref();
     let rc_cur = rc_cur.as_ref();
 
-    let exe = current_exe().unwrap().into_os_string().into_string().unwrap();
+    let exe = current_exe()
+        .unwrap()
+        .into_os_string()
+        .into_string()
+        .unwrap();
 
     if rc_cur.is_some() {
         let rc_cur = rc_cur.unwrap();
@@ -126,7 +138,7 @@ fn do_hook_wrapped() {
         update_if_allowed(rc_cur);
 
         if is_out_of_scope(rc_cur) {
-            return shell_to_parent()
+            return shell_to_parent();
         }
     }
 
@@ -134,12 +146,16 @@ fn do_hook_wrapped() {
 
     if rc_found == rc_cur {
         if allow_err.is_some() {
-            return shell_to_parent_eval(format!(r#"
+            return shell_to_parent_eval(format!(
+                r#"
                     envrc_not_allowed={}
-                    "#, rc_cur.unwrap()))
+                    "#,
+                rc_cur.unwrap()
+            ));
         }
 
-        let p = format!(r#"
+        let p = format!(
+            r#"
 if [ -n "$ENVRC_LOAD" -a -z "$envrc_loaded" ]
 then
     envrc_loaded=1
@@ -152,20 +168,22 @@ then
     fi
 fi
 envrc_not_allowed=
-            "#);
+            "#
+        );
 
         println!("{}", p);
-        return
+        return;
     }
 
     if allow_err.is_some() {
         let allow_err = match allow_err.unwrap() {
             AllowError::AllowDenied => "NOT ALLOWED.",
-            AllowError::AllowExpired => "PERMISSION EXPIRED."
+            AllowError::AllowExpired => "PERMISSION EXPIRED.",
         };
 
         // found an .envrc, but it's not allowed to be loaded
-        let p = format!(r#"
+        let p = format!(
+            r#"
 if [ "$envrc_not_allowed" != "{rc_found}" ]
 then
     tput setaf 3
@@ -176,23 +194,25 @@ then
     envrc_not_allowed="{rc_found}"
 fi
              "#,
-             rc_found = rc_found.unwrap(),
-             allow_err = allow_err);
+            rc_found = rc_found.unwrap(),
+            allow_err = allow_err
+        );
 
         println!("{}", p);
-        return
+        return;
     }
 
     if rc_cur.is_some() {
         // we're in an .envrc scope, but need to load another one
-        return shell_to_parent()
+        return shell_to_parent();
     }
 
     // we're in parent shell, ENVRC_LOAD is empty
     // now we're going to load rc_found
     let rc_found = rc_found.unwrap();
 
-    let p = format!(r#"
+    let p = format!(
+        r#"
 if [[ "$(jobs)" = "" ]]
 then
     echo "envrc: spwan $SHELL"
@@ -206,7 +226,8 @@ else
 fi
         "#,
         rc_found = rc_found,
-        exe = exe);
+        exe = exe
+    );
 
     println!("{}", p);
 }
@@ -217,20 +238,23 @@ fn shell_to_parent() {
 
 fn shell_to_parent_eval(extra: String) {
     // let the parent shell to take over
-    println!(r#"
+    println!(
+        r#"
     echo "cd '$PWD'
     export OLDPWD='$OLDPWD'
     {}
     " > $ENVRC_TMP
     echo "envrc: exit [$ENVRC_LOAD]"
     exit 0
-        "#, extra);
+        "#,
+        extra
+    );
 }
 
 fn is_out_of_scope(rc: &String) -> bool {
     let dir = current_dir();
     if dir.is_err() {
-        return true
+        return true;
     }
     let dir = dir.unwrap();
 
@@ -238,10 +262,10 @@ fn is_out_of_scope(rc: &String) -> bool {
     let rc_dir = rc_path.parent().unwrap();
 
     if dir.strip_prefix(rc_dir).is_ok() {
-        return false
+        return false;
     }
 
-    return true
+    return true;
 }
 
 fn add_allow(rc: &String) {
@@ -257,11 +281,11 @@ fn add_allow(rc: &String) {
     let list = load_allow_list();
 
     let mut file = OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(allow_list.to_str().unwrap())
-                    .unwrap();
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(allow_list.to_str().unwrap())
+        .unwrap();
 
     for (name, ts) in &list {
         if name == rc {
@@ -283,11 +307,11 @@ fn remove_allow(rc: &String) {
     let list = load_allow_list();
 
     let mut file = OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(allow_list.to_str().unwrap())
-                    .unwrap();
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(allow_list.to_str().unwrap())
+        .unwrap();
 
     for (name, ts) in &list {
         if name == rc {
@@ -310,11 +334,11 @@ fn prune_allow() {
     let list = load_allow_list();
 
     let mut file = OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(allow_list.to_str().unwrap())
-                    .unwrap();
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(allow_list.to_str().unwrap())
+        .unwrap();
 
     for (name, ts) in &list {
         if now >= ts + duration {
@@ -349,11 +373,11 @@ fn update_if_allowed(rc: &String) {
     let mut allowed = false;
 
     let mut file = OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(allow_list.to_str().unwrap())
-                    .unwrap();
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(allow_list.to_str().unwrap())
+        .unwrap();
 
     for (name, ts) in &list {
         if name == rc {
@@ -382,19 +406,19 @@ fn get_config_dir() -> PathBuf {
 
 enum AllowError {
     AllowDenied,
-    AllowExpired
+    AllowExpired,
 }
 
 fn get_allow_duration() -> u64 {
     match var("ENVRC_ALLOW_DURATION") {
         Ok(val) => val.parse::<u64>().unwrap(),
-        Err(_) => 60 * 60 * 24
+        Err(_) => 60 * 60 * 24,
     }
 }
 
 fn check_allow(rc: Option<&String>) -> Option<AllowError> {
     if rc.is_none() {
-        return None
+        return None;
     }
     let rc = rc.unwrap();
 
@@ -407,14 +431,14 @@ fn check_allow(rc: Option<&String>) -> Option<AllowError> {
     for (name, ts) in &list {
         if name == rc {
             if now >= ts + duration {
-                return Some(AllowError::AllowExpired)
+                return Some(AllowError::AllowExpired);
             } else {
-                return None
+                return None;
             }
         }
     }
 
-    return Some(AllowError::AllowDenied)
+    return Some(AllowError::AllowDenied);
 }
 
 fn load_allow_list() -> Vec<(String, u64)> {
@@ -424,14 +448,14 @@ fn load_allow_list() -> Vec<(String, u64)> {
     allow_list.push("allow.list");
 
     let file = OpenOptions::new()
-                    .read(true)
-                    .open(allow_list.to_str().unwrap());
+        .read(true)
+        .open(allow_list.to_str().unwrap());
     if file.is_err() {
-        return Vec::new()
+        return Vec::new();
     }
     let file = file.unwrap();
 
-    let mut ret :Vec<(String, u64)> = Vec::new();
+    let mut ret: Vec<(String, u64)> = Vec::new();
 
     for line in BufReader::new(file).lines() {
         let line = line.unwrap();
@@ -446,14 +470,14 @@ fn load_allow_list() -> Vec<(String, u64)> {
         ret.push((name, ts))
     }
 
-    return ret
+    return ret;
 }
 
 fn current_envrc() -> Option<String> {
     let key = "ENVRC_LOAD";
     match var(key) {
         Ok(val) => Some(val),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -465,8 +489,8 @@ fn find_envrc(mut d: PathBuf) -> Option<String> {
         if rc.is_file() || rc.is_dir() {
             return match rc.into_os_string().into_string() {
                 Ok(s) => Some(s),
-                Err(_) => None
-            }
+                Err(_) => None,
+            };
         }
 
         d = d.parent()?.to_path_buf();
