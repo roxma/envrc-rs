@@ -1,4 +1,4 @@
-# envrc - Auto source bash .envrc of your workspace
+# envrc - Auto source .envrc of your workspace
 
 ## Wny?
 
@@ -7,18 +7,18 @@ Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially
 
 Secondly,
 
-> direnv is actually creating a new bash process to load the stdlib, direnvrc
-> and .envrc, and only exports the environment diff back to the original
-> shell.
+> direnv is not loading the `.envrc` into the current shell. It's creating a new bash sub-process to load the stdlib, direnvrc and `.envrc`, and only exports the environment diff back to the original shell. This allows direnv to record the environment changes accurately and also work with all sorts of shells. It also means that aliases and functions are not exportable right now.
 
-However, envrc is simpler. It spawns a new interactive bash and load `.envrc`.
+However, envrc is simpler. It spawns a new interactive shell and load `.envrc`.
 When you `cd` out of the directory, the shell exits and returns terminal back
 to the original shell.
 
 ## Install
 
 - `cargo install envrc`
-- Add `PROMPT_COMMAND='eval "$(envrc bash)"'` to the end of your bashrc
+- Modify the rc file of your shell.
+    - For bash, add `eval "$(envrc init bash)"` to the end of your bashrc.
+    - For zsh, add `eval "$(envrc init zsh)"` to the end of your zshrc.
 
 ## Usage
 
@@ -50,11 +50,12 @@ $ envrc
       -V, --version    Prints version information
 
   SUBCOMMANDS:
+      init     Init the prompt command
+      hook     Called for each prompt
       allow    Grant permission to envrc to load the .envrc
-      bash     for bashrc: PROMPT_COMMAND='eval "$(envrc bash)"'
       deny     Remove the permission
-      help     Prints this message or the help of the given subcommand(s)
       prune    Remove expired or non-existing-file permissions
+      help     Print this message or the help of the given subcommand(s)
 ```
 
 Note: Take care of your background jobs before getting out of `.envrc`.
@@ -63,15 +64,16 @@ Note: Take care of your background jobs before getting out of `.envrc`.
 
 - `export WORKSPACE_DIR=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")` for
   `.envrc` to locate its directory.
-- `exec bash` to reload the modifed `.envrc`
+    - `export WORKSPACE_DIR="${0:A:h}"` for zsh.
+- `exec $SHELL` to reload the modifed `.envrc`
 
-## .bashrc config
+## rc file config
 
-```bash
+```shell
 # If the `.envrc` is allowed, but not sourced for 1d since last unload, It
 # will be considered expired
 export ENVRC_ALLOW_DURATION=$((60*60*24))
-PROMPT_COMMAND='eval "$(envrc bash)"'
+eval "$(envrc init zsh)"
 ```
 
 ## Why not bash/python?
