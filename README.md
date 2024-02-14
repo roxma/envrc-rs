@@ -64,6 +64,7 @@ Note: Take care of your background jobs before getting out of `.envrc`.
 
 - `export WORKSPACE_DIR=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")` for
   `.envrc` to locate its directory.
+    - `export WORKSPACE_DIR="${0:A:h}"` for zsh.
 - `exec $SHELL` to reload the modifed `.envrc`
 
 ## rc file config
