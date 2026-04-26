@@ -1,5 +1,10 @@
 # envrc - Auto source bash .envrc of your workspace
 
+> **This project is deprecated.** Development continues at
+> [denv](https://github.com/roxma/denv) — a Go rewrite with native
+> `.denv.bash` support, multi-file ancestor chain loading, and simpler
+> permission model.
+
 ## Wny?
 
 Firstly, [direnv](https://github.com/direnv/direnv) doesn't officially
